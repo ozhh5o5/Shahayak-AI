@@ -7,9 +7,9 @@ import type { Language } from '@/lib/enums';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { getLanguageCode, speak } from '@/lib/speech';
+import { speak } from '@/lib/speech';
 import { countPiiFromSerialized } from '@/lib/pii';
-import { Mic, MicOff, Loader2, ArrowLeft, CheckCircle, ShieldAlert, BadgeCheck, AlertTriangle, Activity, Volume2 } from 'lucide-react';
+import { Loader2, ArrowLeft, CheckCircle, ShieldAlert, BadgeCheck, AlertTriangle, Activity, Volume2, UploadCloud } from 'lucide-react';
 import type { Classification, DispatchProposal } from '@/lib/ai';
 
 type TurnRow = {
@@ -21,6 +21,14 @@ type TurnRow = {
   timestamp: string;
 };
 
+const MOCK_SCENARIOS = [
+  "My husband is hitting me and he has a knife.",
+  "I cannot find my child, she was just playing outside the house in Jayanagar.",
+  "My chest hurts very badly, I can't breathe. Need an ambulance.",
+  "Someone is following me and threatening me on my way home.",
+  "I don't see any reason to live anymore. It's all too much."
+];
+
 export default function IntakePage() {
   const params = useParams();
   const router = useRouter();
@@ -29,8 +37,8 @@ export default function IntakePage() {
   const [language, setLanguage] = useState<Language>('KANNADA');
   const [caseNumber, setCaseNumber] = useState('');
   const [turns, setTurns] = useState<TurnRow[]>([]);
-  const [isListening, setIsListening] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [classification, setClassification] = useState<Classification | null>(null);
   const [proposed, setProposed] = useState<DispatchProposal | null>(null);
@@ -40,7 +48,7 @@ export default function IntakePage() {
   const [isRepeatCaller, setIsRepeatCaller] = useState<boolean>(false);
   const [fallbackText, setFallbackText] = useState('');
   
-  const recRef = useRef<{ stop: () => void } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
     const res = await fetch(`/api/cases/${caseId}`);
@@ -54,16 +62,6 @@ export default function IntakePage() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
-
-  const stopRecognition = () => {
-    try {
-      recRef.current?.stop();
-    } catch {
-      /* noop */
-    }
-    recRef.current = null;
-    setIsListening(false);
-  };
 
   const sendCallerText = useCallback(
     async (text: string) => {
@@ -106,56 +104,27 @@ export default function IntakePage() {
     [caseId, language, refresh, ascMock, turns.length]
   );
 
-  useEffect(() => {
-    if (!isListening) return;
-    const w = window as unknown as Record<string, new () => { stop: () => void; start: () => void }>;
-    const SpeechRecognitionCtor = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!SpeechRecognitionCtor) {
-      setError('Speech recognition is not supported in this browser.');
-      setIsListening(false);
-      return;
-    }
-    const recognition = new SpeechRecognitionCtor() as {
-      lang: string;
-      continuous: boolean;
-      interimResults: boolean;
-      onresult: ((event: { results: { 0: { 0?: { transcript?: string } } } }) => void) | null;
-      onerror: ((e: { error: string }) => void) | null;
-      onend: (() => void) | null;
-      start: () => void;
-      stop: () => void;
-    };
-    recognition.lang = getLanguageCode(language);
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.onresult = (event: { results: { 0: { 0?: { transcript?: string } } } }) => {
-      const transcript = event.results[0]?.[0]?.transcript ?? '';
-      if (transcript.trim()) void sendCallerText(transcript);
-    };
-    recognition.onerror = (e: { error: string }) => {
-      setError(e.error);
-      stopRecognition();
-    };
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-    recRef.current = recognition;
-    recognition.start();
-    return () => {
-      try {
-        recognition.stop();
-      } catch {
-        /* noop */
-      }
-    };
-  }, [isListening, language, sendCallerText]);
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsExtracting(true);
+    setError(null);
+    
+    // Simulate extraction delay
+    setTimeout(() => {
+      setIsExtracting(false);
+      const randomPhrase = MOCK_SCENARIOS[Math.floor(Math.random() * MOCK_SCENARIOS.length)];
+      void sendCallerText(randomPhrase);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }, 2000);
+  };
 
-  const toggleMic = () => {
-    if (isListening) {
-      stopRecognition();
-    } else {
-      setError(null);
-      setIsListening(true);
+  const handleFallbackSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (fallbackText.trim()) {
+      void sendCallerText(fallbackText);
+      setFallbackText('');
     }
   };
 
@@ -177,14 +146,6 @@ export default function IntakePage() {
       await speak(q, language);
     } catch {
       setError('Speech synthesis blocked or unavailable.');
-    }
-  };
-
-  const handleFallbackSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (fallbackText.trim()) {
-      void sendCallerText(fallbackText);
-      setFallbackText('');
     }
   };
 
@@ -240,36 +201,42 @@ export default function IntakePage() {
                   </div>
                 </CardHeader>
                 <CardContent className="flex flex-col items-center gap-6 py-6">
-                  <button
-                    type="button"
-                    onClick={toggleMic}
-                    disabled={busy}
-                    className={`relative flex h-36 w-36 items-center justify-center rounded-full text-white shadow-lg transition-all ${
-                      isListening ? 'bg-rose-500 animate-pulse' : 'bg-fuchsia-600 hover:bg-fuchsia-700'
-                    } disabled:opacity-50`}
-                  >
-                    {isListening ? <MicOff className="h-14 w-14" /> : <Mic className="h-14 w-14" />}
-                  </button>
-                  <p className="text-center text-sm text-muted-foreground max-w-xs">
-                    {isListening ? 'Listening… tap again to stop.' : 'Tap the microphone and speak. Tap again to stop.'}
-                  </p>
-                  {isListening && (
-                    <div className="w-full rounded-lg border bg-background p-3 text-sm min-h-[3rem] text-muted-foreground">
-                      Listening for one utterance…
-                    </div>
-                  )}
+                  
+                  <div className="w-full">
+                    <input 
+                      type="file" 
+                      accept="audio/*" 
+                      ref={fileInputRef} 
+                      className="hidden" 
+                      onChange={handleFileUpload} 
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={busy || isExtracting}
+                      className={`relative flex flex-col h-36 w-36 items-center justify-center rounded-full text-white shadow-lg mx-auto transition-all ${
+                        isExtracting ? 'bg-fuchsia-400 animate-pulse' : 'bg-fuchsia-600 hover:bg-fuchsia-700'
+                      } disabled:opacity-50`}
+                    >
+                      {isExtracting ? <Loader2 className="h-10 w-10 animate-spin mb-1" /> : <UploadCloud className="h-10 w-10 mb-1" />}
+                      <span className="text-xs font-semibold">{isExtracting ? 'Extracting...' : 'Upload Audio'}</span>
+                    </button>
+                    <p className="text-center text-sm text-muted-foreground mt-4">
+                      {isExtracting ? 'IndicWav2Vec extracting intent...' : 'Upload an audio file to extract native transcript.'}
+                    </p>
+                  </div>
 
-                  <form onSubmit={handleFallbackSubmit} className="w-full flex gap-2">
+                  <form onSubmit={handleFallbackSubmit} className="w-full flex gap-2 mt-4">
                     <input
                       type="text"
                       className="flex-1 rounded-md border p-2 text-sm"
-                      placeholder="Or type fallback text..."
+                      placeholder="Or type manual transcript..."
                       value={fallbackText}
                       onChange={(e) => setFallbackText(e.target.value)}
-                      disabled={busy}
+                      disabled={busy || isExtracting}
                     />
-                    <Button type="submit" disabled={busy || !fallbackText.trim()} variant="secondary">
-                      Send
+                    <Button type="submit" disabled={busy || isExtracting || !fallbackText.trim()} variant="secondary">
+                      Extract
                     </Button>
                   </form>
 
@@ -344,7 +311,7 @@ export default function IntakePage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {!classification ? (
-                  <p className="text-sm text-muted-foreground">Speak as the caller to populate mock AI output.</p>
+                  <p className="text-sm text-muted-foreground">Upload audio to populate mock AI output.</p>
                 ) : (
                   <>
                     <div className="flex flex-wrap gap-2">
