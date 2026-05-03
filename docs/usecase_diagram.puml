@@ -1,0 +1,62 @@
+@startuml
+!theme plain
+
+skinparam backgroundColor #FFFFFF
+skinparam usecase {
+  BackgroundColor #FFE5E5
+  BorderColor #CC0000
+  FontColor #660000
+  ArrowColor #CC0000
+}
+skinparam actor {
+  BackgroundColor #FFFFFF
+  BorderColor #CC0000
+  FontColor #CC0000
+}
+skinparam rectangle {
+  BackgroundColor #FFFAFA
+  BorderColor #FFCCCC
+  FontColor #CC0000
+}
+
+actor "Citizen (Caller)" as Caller
+actor "Helpline Operator" as Operator
+actor "Dispatch Unit\n(Police, Ambulance, WPO)" as Dispatcher
+
+rectangle "SahayakAI Console" {
+  usecase "Initiate Call" as UC1
+  usecase "Perform PII Redaction" as UC2
+  usecase "Transcribe via\nIndicWav2Vec" as UC3
+  usecase "Acoustic Scene\nClassification (ASC)" as UC4
+  usecase "Classify Intent\n& Urgency" as UC5
+  usecase "Link Repeat Caller\nVoice-Print" as UC6
+  usecase "Human-in-the-Loop\nResolution" as UC7
+  usecase "Generate Draft\nResponses" as UC8
+  usecase "Restatement &\nConfirmation Loop" as UC9
+  usecase "Causal Dispatch\nRecommendation" as UC10
+}
+
+Caller --> UC1
+Caller --> UC9 : Confirms issue
+
+UC1 --> UC2 : Audio stream
+UC2 --> UC3 : Redacted stream
+UC1 --> UC4 : Background audio
+UC1 --> UC6 : Voice-print
+
+UC3 --> UC5 : Text
+UC4 --> UC5 : Scene context
+
+UC5 ..> UC7 : <<include>> if Confidence < 70%
+Operator --> UC7 : Selects correct intent
+
+UC5 --> UC8
+Operator <-- UC8 : Reads suggested scripts
+
+UC5 --> UC10 : Intent + Urgency
+UC10 --> UC9 : Generates summary
+UC9 --> Operator : Allows Finalization
+Operator --> UC10 : Approves Logic Tree
+UC10 --> Dispatcher : Notifies relevant departments
+
+@enduml
