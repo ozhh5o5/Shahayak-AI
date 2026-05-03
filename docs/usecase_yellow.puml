@@ -1,0 +1,72 @@
+@startuml
+!theme plain
+
+' PowerPoint Size Simulation (Approx 16:9 Aspect Ratio)
+skinparam {
+    Padding 20
+    Nodesep 60
+    Ranksep 80
+}
+
+skinparam backgroundColor #FFFFFF
+
+skinparam usecase {
+    BackgroundColor #FFFFE0
+    BorderColor #DAA520
+    FontColor #000000
+    ArrowColor #DAA520
+}
+
+skinparam actor {
+    BackgroundColor #FFFFFF
+    BorderColor #DAA520
+    FontColor #000000
+}
+
+skinparam rectangle {
+    BackgroundColor #FFFAFA
+    BorderColor #FFD700
+    FontColor #DAA520
+}
+
+actor "Citizen (Caller)" as Caller
+actor "Helpline Operator" as Operator
+actor "Dispatch Unit\n(Police, Ambulance, WPO)" as Dispatcher
+
+rectangle "SahayakAI Console (Yellow-White Theme)" {
+    usecase "Upload Audio File\n(Simulated recorded call)" as UC1
+    usecase "Perform PII Redaction\n(DPDP 2023 Compliance)" as UC2
+    usecase "Extract Transcript\nvia IndicWav2Vec" as UC3
+    usecase "Acoustic Scene\nClassification (ASC)" as UC4
+    usecase "Classify Intent\n& Urgency" as UC5
+    usecase "Link Repeat Caller\nVoice-Print Match" as UC6
+    usecase "Human-in-the-Loop\nResolution (<70%)" as UC7
+    usecase "Generate Categorized\nDraft Responses" as UC8
+    usecase "Restatement &\nConfirmation Loop" as UC9
+    usecase "Causal Dispatch\nRecommendation" as UC10
+}
+
+Caller --> UC1
+Caller --> UC9 : Confirms summary
+
+UC1 --> UC2 : Redaction
+UC2 --> UC3 : Extraction
+UC1 --> UC4 : Non-verbal context
+UC1 --> UC6 : Identity match
+
+UC3 --> UC5
+UC4 --> UC5
+
+UC5 ..> UC7 : <<include>> if low conf
+Operator --> UC7 : Manual Intent Select
+
+UC5 --> UC8
+Operator <-- UC8 : Suggested protocols
+
+UC5 --> UC10
+UC10 --> UC9 : Restatement
+UC9 --> Operator : Finalize approval
+Operator --> UC10 : Dispatch Trigger
+UC10 --> Dispatcher : Agency notification
+
+@enduml
