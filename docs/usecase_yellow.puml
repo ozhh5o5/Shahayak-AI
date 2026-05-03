@@ -1,12 +1,15 @@
 @startuml
 !theme plain
 
-' PowerPoint Size Simulation (Approx 16:9 Aspect Ratio)
+' PowerPoint Size Simulation (Standard 16:9 Landscape)
+' Increasing ranksep forces a wider horizontal layout
 skinparam {
-    Padding 20
-    Nodesep 60
-    Ranksep 80
+    Padding 30
+    Nodesep 100
+    Ranksep 50
+    WrapWidth 200
 }
+left to right direction
 
 skinparam backgroundColor #FFFFFF
 
