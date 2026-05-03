@@ -5,7 +5,7 @@
 SahayakAI replaces the traditional, linear IVR process of the 1092 helpline with a parallelized, AI-driven triage system.
 
 ### 1. Data Ingestion & PII Redaction
-- **Input Channels:** Receives audio streams via Web Speech API (simulating telephony integrations).
+- **Input Channels:** Receives audio files via a dedicated upload interface (simulating recorded telephony data).
 - **Processing Layer:** Utilizes AI4Bharat IndicWav2Vec models to process multi-lingual, code-switched audio.
 - **Data Protection:** Implements real-time PII redaction (names, addresses, IDs) directly at the transcription layer, maintaining DPDP Act 2023 compliance. The AI and the human operators only interact with redacted text.
 
@@ -37,7 +37,7 @@ For calls where the victim cannot speak (due to proximity to an abuser, physical
 - **Framework:** Next.js 16 (App Router), React 19
 - **Database:** Prisma ORM, SQLite (local development)
 - **Styling:** Tailwind CSS, Tremor, Lucide React
-- **Web APIs:** Web Speech API (SpeechRecognition and SpeechSynthesis)
+- **Web APIs:** Web Speech API (SpeechSynthesis for restatement loop) and File API for audio ingestion.
 
 ## Mock Interfaces
 *Note for evaluators:* Because running actual localized deep-learning models (like Wav2Vec) in a browser/hackathon sandbox is infeasible, the classification and ASC logic are mocked via TypeScript services (`lib/ai.ts`). The UI and the architecture accurately demonstrate how the production platform would interface with these endpoints.
