@@ -4,7 +4,7 @@
 **Project Name:** SahayakAI
 
 ## Overview
-SahayakAI is an advanced, AI-powered operator console built for the 1092 women and child distress helpline. Standard IVR and translation APIs fail when dealing with panicked, code-switched, or silent callers. SahayakAI addresses this by using direct phonetic acoustic triage and zero-resource dialect NLP to understand distress calls natively without brittle translation layers. 
+SahayakAI is an advanced, AI-powered operator console built for the 1092 women and child distress helpline. Standard IVR and translation APIs fail when dealing with panicked, code-switched, or silent callers. SahayakAI addresses this by using direct phonetic acoustic triage and zero-resource dialect NLP to understand distress calls natively without brittle translation layers. The application runs as a lightweight Vite SPA, deployable to Vercel with zero server configuration.
 
 ## Key Innovations
 - **Multimodal Acoustic Triage:** Capable of classifying intent and urgency directly from uploaded audio files, including Acoustic Scene Classification (ASC) for non-verbal context.
